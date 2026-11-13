@@ -41,3 +41,8 @@ Registros SQLite antigos não são importados automaticamente para Neon. Preserv
 ## Cores por participante
 Na seção do depósito, escolha Gui ou Helen, selecione a cor e clique em Salvar cor. O backend cria automaticamente player_settings no Neon sem alterar deposits. Para instalar esta atualização, substitua os arquivos no repositório e faça novo deploy no Render mantendo DATABASE_URL. As cores aparecem na cartela, no avatar e no progresso. Confirme no Neon com: SELECT player, color FROM player_settings;
 
+
+## Paleta com duas cores
+Cada pessoa agora tem Primária e Secundária, com prévia e botão Salvar cores. A primária controla botões, progresso, avatar e valores marcados; a secundária controla fundos da cartela, painel e cartão. O texto alterna entre preto e branco para manter contraste. A paleta da pessoa selecionada também colore os detalhes gerais do site.
+No deploy, a coluna secondary_color é adicionada automaticamente à tabela player_settings. A cor antiga continua como primária e os depósitos são preservados. Para consultar: SELECT player, color, secondary_color FROM player_settings;
+

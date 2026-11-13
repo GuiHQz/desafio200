@@ -18,3 +18,24 @@
 .color-editor>div>span{font-size:10px;color:#75846a}
 .color-editor button{margin-left:auto;border:0;border-radius:7px;padding:9px;background:var(--accent);color:var(--on-accent);font-size:10px}
 .color-editor>small{display:block;font-size:10px;line-height:1.6;color:#64765b;margin-top:9px}
+
+/* Two-color palettes */
+.theme-page{min-height:100vh;background:var(--page);color:#253d36}
+.theme-page header{background:var(--page)}
+.theme-page .brandmark,.theme-page .primary,.theme-page .switch .chosen{background:var(--accent);color:var(--on-accent)}
+.theme-page nav button.active:after{background:var(--accent)}
+.theme-page h1 em,.theme-page .branddot{color:var(--accent-ink)}
+.score,.score.helen,.deposit,.board,.history{background:var(--secondary);color:var(--on-secondary);border-color:var(--secondary-line)}
+.score small,.score.helen small,.score .scorefoot,.score.helen .scorefoot,.board p,.deposit p,.deposit .note,.deposit .amount small,.deposit .amount span,.history p,.boardbottom,.filters button,.filters>span,.color-editor label,.color-editor>small,.color-editor>div>span{color:var(--on-secondary)}
+.score .progress,.score.helen .progress{background:var(--secondary-line)}
+.board .grid button:not(.paid):not(.selected){background:var(--secondary);color:var(--on-secondary);border-color:var(--secondary-line)}
+.board .grid button.paid,.board .grid.pink button.paid{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.board .grid button.selected,.board .grid.pink button.selected{background:var(--accent);color:var(--on-accent);outline:2px solid var(--on-secondary);outline-offset:1px}
+.deposit .forperson,.board .switch{background:var(--secondary);color:var(--on-secondary);border-color:var(--secondary-line)}
+.color-editor h3{font-size:12px;margin:0 0 12px}
+.color-editor .color-row{margin:9px 0;display:flex;justify-content:space-between}
+.color-editor .color-row label{font-size:11px;margin:0;min-width:62px}
+.color-editor .save-palette{width:100%;margin:12px 0 0;border:1px solid var(--secondary-line)}
+.palette-preview{padding:12px;border:1px solid var(--secondary-line);border-radius:8px;background:var(--secondary);display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.palette-preview>span{background:var(--accent);color:var(--on-accent)!important;border-radius:5px;padding:8px;font-size:11px!important}
+.palette-preview strong{color:var(--on-secondary);font-size:11px}

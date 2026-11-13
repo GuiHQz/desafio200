@@ -12,12 +12,14 @@ if(process.env.DATABASE_URL){
  pool.on('error',()=>console.error('Conexão com o banco interrompida'));
  await pool.query("CREATE TABLE IF NOT EXISTS deposits(player TEXT NOT NULL CHECK(player IN ('Gui','Helen')),value INTEGER NOT NULL CHECK(value BETWEEN 1 AND 200),created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(player,value))");
  await pool.query("CREATE TABLE IF NOT EXISTS player_settings(player TEXT PRIMARY KEY CHECK(player IN ('Gui','Helen')),color TEXT NOT NULL)");
- settings={async list(){const {rows}=await pool.query('SELECT player,color FROM player_settings');return {...DEFAULT_COLORS,...Object.fromEntries(rows.map(r=>[r.player,r.color]))}},async save(player,color){await pool.query('INSERT INTO player_settings(player,color) VALUES($1,$2) ON CONFLICT(player) DO UPDATE SET color=EXCLUDED.color',[player,color])}};
+ await pool.query('ALTER TABLE player_settings ADD COLUMN IF NOT EXISTS secondary_color TEXT');
+ settings={async list(){const {rows}=await pool.query('SELECT player,color,secondary_color FROM player_settings');return {...DEFAULT_COLORS,...Object.fromEntries(rows.map(r=>[r.player,{primary:r.color,secondary:r.secondary_color||DEFAULT_COLORS[r.player].secondary}]))}},async save(player,color,secondary){await pool.query('INSERT INTO player_settings(player,color,secondary_color) VALUES($1,$2,$3) ON CONFLICT(player) DO UPDATE SET color=EXCLUDED.color,secondary_color=EXCLUDED.secondary_color',[player,color,secondary])}};
  store={list:async()=>(await pool.query('SELECT * FROM deposits ORDER BY created_at DESC,value DESC')).rows,health:()=>pool.query('SELECT 1'),change:(method,player,values)=>method==='POST'?pool.query('INSERT INTO deposits(player,value) SELECT $1,unnest($2::integer[]) ON CONFLICT(player,value) DO NOTHING',[player,values]):pool.query('DELETE FROM deposits WHERE player=$1 AND value=ANY($2::integer[])',[player,values])};
 }else{
  const{DatabaseSync}=await import('node:sqlite');const{mkdirSync}=await import('node:fs');mkdirSync('data',{recursive:true});const db=new DatabaseSync('data/challenge.sqlite');db.exec('CREATE TABLE IF NOT EXISTS deposits(player TEXT NOT NULL,value INTEGER NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(player,value))');
  db.exec("CREATE TABLE IF NOT EXISTS player_settings(player TEXT PRIMARY KEY CHECK(player IN ('Gui','Helen')),color TEXT NOT NULL)");
- settings={async list(){return {...DEFAULT_COLORS,...Object.fromEntries(db.prepare('SELECT player,color FROM player_settings').all().map(r=>[r.player,r.color]))}},async save(player,color){db.prepare('INSERT INTO player_settings(player,color) VALUES(?,?) ON CONFLICT(player) DO UPDATE SET color=excluded.color').run(player,color)}};
+ if(!db.prepare('PRAGMA table_info(player_settings)').all().some(c=>c.name==='secondary_color'))db.exec('ALTER TABLE player_settings ADD COLUMN secondary_color TEXT');
+ settings={async list(){return {...DEFAULT_COLORS,...Object.fromEntries(db.prepare('SELECT player,color,secondary_color FROM player_settings').all().map(r=>[r.player,{primary:r.color,secondary:r.secondary_color||DEFAULT_COLORS[r.player].secondary}]))}},async save(player,color,secondary){db.prepare('INSERT INTO player_settings(player,color,secondary_color) VALUES(?,?,?) ON CONFLICT(player) DO UPDATE SET color=excluded.color,secondary_color=excluded.secondary_color').run(player,color,secondary)}};
  store={list:async()=>db.prepare('SELECT * FROM deposits ORDER BY created_at DESC,value DESC').all(),health:async()=>db.prepare('SELECT 1').get(),async change(method,player,values){db.exec('BEGIN');try{const now=new Date().toISOString();for(const value of values){if(method==='POST')db.prepare('INSERT OR IGNORE INTO deposits VALUES(?,?,?)').run(player,value,now);else db.prepare('DELETE FROM deposits WHERE player=? AND value=?').run(player,value)}db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}}};
 }
 const root=path.resolve('dist/client');
@@ -33,8 +35,8 @@ createServer(async(req,res)=>{
  if(!req.headers['content-type']?.startsWith('application/json'))return json(415,{error:'Envie JSON'});
  let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>1000)return json(413,{error:'Limite excedido'})}
  let data;try{data=JSON.parse(body)}catch{return json(400,{error:'JSON inválido'})}
- if(!data||!['Gui','Helen'].includes(data.player)||!validColor(data.color))return json(400,{error:'Cor inválida'});
- await settings.save(data.player,data.color.toLowerCase());return json(200,{ok:true});
+ if(!data||!['Gui','Helen'].includes(data.player)||!validColor(data.color)||!validColor(data.secondary))return json(400,{error:'Cor inválida'});
+ await settings.save(data.player,data.color.toLowerCase(),data.secondary.toLowerCase());return json(200,{ok:true});
  }
  if(url.pathname.startsWith('/api/')){
  if(url.pathname!=='/api/deposits')return json(404,{error:'Não encontrado'});
