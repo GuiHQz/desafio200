@@ -2,6 +2,8 @@ import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {validate} from './model.mjs';
+import {validColor,DEFAULT_COLORS} from './colors.mjs';
+let settings;
 const production=process.env.NODE_ENV==='production';
 if(production&&!process.env.DATABASE_URL)throw Error('Configure DATABASE_URL com a conexão Neon');
 let store;
@@ -9,9 +11,13 @@ if(process.env.DATABASE_URL){
  const {default:pg}=await import('pg');const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:5,connectionTimeoutMillis:15000});
  pool.on('error',()=>console.error('Conexão com o banco interrompida'));
  await pool.query("CREATE TABLE IF NOT EXISTS deposits(player TEXT NOT NULL CHECK(player IN ('Gui','Helen')),value INTEGER NOT NULL CHECK(value BETWEEN 1 AND 200),created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(player,value))");
+ await pool.query("CREATE TABLE IF NOT EXISTS player_settings(player TEXT PRIMARY KEY CHECK(player IN ('Gui','Helen')),color TEXT NOT NULL)");
+ settings={async list(){const {rows}=await pool.query('SELECT player,color FROM player_settings');return {...DEFAULT_COLORS,...Object.fromEntries(rows.map(r=>[r.player,r.color]))}},async save(player,color){await pool.query('INSERT INTO player_settings(player,color) VALUES($1,$2) ON CONFLICT(player) DO UPDATE SET color=EXCLUDED.color',[player,color])}};
  store={list:async()=>(await pool.query('SELECT * FROM deposits ORDER BY created_at DESC,value DESC')).rows,health:()=>pool.query('SELECT 1'),change:(method,player,values)=>method==='POST'?pool.query('INSERT INTO deposits(player,value) SELECT $1,unnest($2::integer[]) ON CONFLICT(player,value) DO NOTHING',[player,values]):pool.query('DELETE FROM deposits WHERE player=$1 AND value=ANY($2::integer[])',[player,values])};
 }else{
  const{DatabaseSync}=await import('node:sqlite');const{mkdirSync}=await import('node:fs');mkdirSync('data',{recursive:true});const db=new DatabaseSync('data/challenge.sqlite');db.exec('CREATE TABLE IF NOT EXISTS deposits(player TEXT NOT NULL,value INTEGER NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(player,value))');
+ db.exec("CREATE TABLE IF NOT EXISTS player_settings(player TEXT PRIMARY KEY CHECK(player IN ('Gui','Helen')),color TEXT NOT NULL)");
+ settings={async list(){return {...DEFAULT_COLORS,...Object.fromEntries(db.prepare('SELECT player,color FROM player_settings').all().map(r=>[r.player,r.color]))}},async save(player,color){db.prepare('INSERT INTO player_settings(player,color) VALUES(?,?) ON CONFLICT(player) DO UPDATE SET color=excluded.color').run(player,color)}};
  store={list:async()=>db.prepare('SELECT * FROM deposits ORDER BY created_at DESC,value DESC').all(),health:async()=>db.prepare('SELECT 1').get(),async change(method,player,values){db.exec('BEGIN');try{const now=new Date().toISOString();for(const value of values){if(method==='POST')db.prepare('INSERT OR IGNORE INTO deposits VALUES(?,?,?)').run(player,value,now);else db.prepare('DELETE FROM deposits WHERE player=? AND value=?').run(player,value)}db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}}};
 }
 const root=path.resolve('dist/client');
@@ -20,6 +26,16 @@ createServer(async(req,res)=>{
  try{
  const url=new URL(req.url,'http://localhost');
  if(url.pathname==='/healthz'){await store.health();return json(200,{ok:true})}
+ if(url.pathname==='/api/settings'){
+ if(req.method==='GET')return json(200,await settings.list());
+ if(req.method!=='PUT')return json(405,{error:'Método inválido'});
+ if(req.headers['sec-fetch-site']==='cross-site')return json(403,{error:'Origem inválida'});
+ if(!req.headers['content-type']?.startsWith('application/json'))return json(415,{error:'Envie JSON'});
+ let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>1000)return json(413,{error:'Limite excedido'})}
+ let data;try{data=JSON.parse(body)}catch{return json(400,{error:'JSON inválido'})}
+ if(!data||!['Gui','Helen'].includes(data.player)||!validColor(data.color))return json(400,{error:'Cor inválida'});
+ await settings.save(data.player,data.color.toLowerCase());return json(200,{ok:true});
+ }
  if(url.pathname.startsWith('/api/')){
  if(url.pathname!=='/api/deposits')return json(404,{error:'Não encontrado'});
  if(req.method==='GET')return json(200,await store.list());

@@ -37,3 +37,7 @@ Registros SQLite antigos não são importados automaticamente para Neon. Preserv
 
 `npm test` verifica total de R$ 20.100, conclusão, separação por pessoa e validação dos números. PostgreSQL usa consultas parametrizadas, chave primária por pessoa/valor e uma única operação atômica para cada confirmação. A conexão com Neon e o deploy real ainda precisam ser verificados após configurar as contas.
 # desafio200
+
+## Cores por participante
+Na seção do depósito, escolha Gui ou Helen, selecione a cor e clique em Salvar cor. O backend cria automaticamente player_settings no Neon sem alterar deposits. Para instalar esta atualização, substitua os arquivos no repositório e faça novo deploy no Render mantendo DATABASE_URL. As cores aparecem na cartela, no avatar e no progresso. Confirme no Neon com: SELECT player, color FROM player_settings;
+

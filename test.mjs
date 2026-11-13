@@ -1,3 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {validate,summary,TOTAL} from './model.mjs';
+import {validColor,theme} from './colors.mjs';
+test('valida cores e garante contraste para extremos',()=>{assert.ok(validColor('#12aBcF'));for(const c of ['red','#fff','#12345678',null,'url(x)'])assert.equal(validColor(c),false);assert.equal(theme('#ffffff')['--on-accent'],'#000000');assert.equal(theme('#000000')['--on-accent'],'#ffffff')});
 test('cartela soma 20.100 e conclui com 200 valores',()=>{const rows=Array.from({length:200},(_,i)=>({player:'Gui',value:i+1,created_at:'2026-11-13'}));assert.equal(summary(rows,'Gui').total,TOTAL);assert.equal(summary(rows,'Gui').count,200);assert.ok(summary(rows,'Gui').completedAt);assert.equal(summary(rows,'Helen').total,0)});
 test('rejeita valores repetidos, fracionados e fora da cartela',()=>{for(const values of [[0],[201],[1.5],[1,1],[]])assert.equal(validate('Gui',values),false);assert.equal(validate('Outro',[1]),false);assert.equal(validate('Helen',[1,200]),true)});
